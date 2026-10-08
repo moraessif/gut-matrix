@@ -8,11 +8,11 @@ CLOSED = ("Completed", "Cancelled")
 SOURCES = ["Employee observation", "Customer / consultant complaint", "Audit or review",
            "KPI / dashboard alert", "Management review", "Incident or failure", "Other"]
 SCALES = {
-    "gravity": ["Very low impact", "Low impact", "Moderate impact", "High impact", "Extremely severe impact"],
-    "urgency": ["Can wait", "Low urgency", "Should be addressed in the medium term",
-                "Must be addressed quickly", "Immediate action required"],
-    "trend": ["Unlikely to worsen", "May worsen slowly", "Likely to worsen",
-              "Likely to worsen quickly", "Likely to worsen immediately or become critical"],
+    "gravity": ["Impacto muito baixo", "Impacto baixo", "Impacto moderado", "Impacto alto", "Impacto extremamente grave"],
+    "urgency": ["Pode esperar", "Pouco urgente", "Deve ser tratado a médio prazo",
+                "Deve ser tratado rapidamente", "Ação imediata necessária"],
+    "trend": ["Não deve piorar", "Pode piorar lentamente", "Deve piorar",
+              "Deve piorar rapidamente", "Deve piorar imediatamente ou se tornar crítico"],
 }
 
 

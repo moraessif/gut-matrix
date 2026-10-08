@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { PR, PRIOS, code, prioOf } from "./util.js";
+import { PR, PRIOS, code, prioOf, prioLabel } from "./util.js";
 
-export const Chip = ({ p }) => <span className={`chip p-${PR[p]}`}>{p}</span>;
+export const Chip = ({ p }) => <span className={`chip p-${PR[p]}`}>{prioLabel(p)}</span>;
 
 export function Modal({ title, onClose, children }) {
   useEffect(() => {
@@ -54,7 +54,7 @@ export function CritGroup({ name, scale, value, onChange, disabled }) {
 }
 
 export function LiveScore({ g, u, t }) {
-  if (!(g && u && t)) return <div className="live"><span className="muted">Choose gravity, urgency and trend to calculate the score.</span></div>;
+  if (!(g && u && t)) return <div className="live"><span className="muted">Escolha gravidade, urgência e tendência para calcular a nota.</span></div>;
   const s = g * u * t, p = prioOf(s);
   return (
     <div className="live">
@@ -88,7 +88,7 @@ export function GutMap({ items }) {
       dots.push(
         <g key={x.id} className="dot" tabIndex={0} role="link" aria-label={x.title} transform={`translate(${cx + ox} ${cy + oy})`}
            onClick={() => nav(`/problems/${x.id}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/problems/${x.id}`)}>
-          <title>{`${code(x.id)} ${x.title} | G${x.g} x U${x.u} x T${x.t} = ${x.final_score} (${x.priority})`}</title>
+          <title>{`${code(x.id)} ${x.title} | G${x.g} x U${x.u} x T${x.t} = ${x.final_score} (${prioLabel(x.priority)})`}</title>
           {x.validated && <circle r={r + 3} fill="none" stroke="#fff" strokeOpacity=".85" strokeWidth="1.5" />}
           <circle className="main" r={r} style={{ fill: `var(--p-${PR[x.priority]})` }} />
         </g>
@@ -97,12 +97,12 @@ export function GutMap({ items }) {
     if (n > 9) dots.push(<text key={key + "+"} className="ax" x={cx + dx} y={cy + dy + 14} textAnchor="middle">+{n - 8}</text>);
   });
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="GUT map: gravity by urgency; dot size shows trend">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Mapa GUT: gravidade por urgência; o tamanho do ponto indica a tendência">
       {rects}
       {[1, 2, 3, 4, 5].map((g) => <text key={"g" + g} className="ax" x={x0 - 12} y={y0 + (5 - g) * ch + ch / 2 + 4} textAnchor="end">{g}</text>)}
       {[1, 2, 3, 4, 5].map((u) => <text key={"u" + u} className="ax" x={x0 + (u - 1) * cw + cw / 2} y={y0 + ch * 5 + 18} textAnchor="middle">{u}</text>)}
-      <text className="axt" x={x0 + cw * 2.5} y={y0 + ch * 5 + 42} textAnchor="middle">Urgency: from “can wait” to “immediate action”</text>
-      <text className="axt" transform={`translate(14 ${y0 + ch * 2.5}) rotate(-90)`} textAnchor="middle">Gravity</text>
+      <text className="axt" x={x0 + cw * 2.5} y={y0 + ch * 5 + 42} textAnchor="middle">Urgência: de “pode esperar” a “ação imediata”</text>
+      <text className="axt" transform={`translate(14 ${y0 + ch * 2.5}) rotate(-90)`} textAnchor="middle">Gravidade</text>
       {dots}
     </svg>
   );
@@ -113,7 +113,7 @@ export function StackRow({ name, d, max, onClick }) {
     <button className="brow" onClick={onClick}>
       <span>{name}</span>
       <span className="track">
-        {PRIOS.map((p) => d[p] ? <span key={p} className={`p-${PR[p]}`} style={{ width: `${(d[p] / max) * 100}%` }} title={`${p}: ${d[p]}`} /> : null)}
+        {PRIOS.map((p) => d[p] ? <span key={p} className={`p-${PR[p]}`} style={{ width: `${(d[p] / max) * 100}%` }} title={`${prioLabel(p)}: ${d[p]}`} /> : null)}
       </span>
       <span className="num">{d.total}</span>
     </button>

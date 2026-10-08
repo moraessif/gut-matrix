@@ -25,11 +25,11 @@ def verify_password(pw: str, stored: str) -> bool:
 
 def password_problem(pw: str, email: str = "") -> str | None:
     if len(pw) < 10:
-        return "Password must have at least 10 characters."
+        return "A senha deve ter no mínimo 10 caracteres."
     if pw.lower() == email.lower():
-        return "Password cannot be the same as the e-mail."
+        return "A senha não pode ser igual ao e-mail."
     if pw.isdigit() or pw.isalpha():
-        return "Use a mix of letters and numbers."
+        return "Use uma combinação de letras e números."
     return None
 
 

@@ -21,7 +21,7 @@ async function request(method, path, body) {
   if (!res.ok) {
     let msg = data && data.detail;
     if (Array.isArray(msg)) msg = msg.map((x) => `${(x.loc || []).slice(-1)[0] || ""}: ${x.msg}`).join("; ");
-    throw new ApiError(msg || `Error ${res.status}`, res.status);
+    throw new ApiError(msg || `Erro ${res.status}`, res.status);
   }
   return data;
 }

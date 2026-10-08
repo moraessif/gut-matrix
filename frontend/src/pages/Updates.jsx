@@ -4,7 +4,7 @@ import { get } from "../api.js";
 import { useApp } from "../context.jsx";
 import { FeedItem } from "./Dashboard.jsx";
 
-const RANGES = { "1": "Today", "7": "Last 7 days", "30": "Last 30 days" };
+const RANGES = { "1": "Hoje", "7": "Últimos 7 dias", "30": "Últimos 30 dias" };
 
 export default function Updates() {
   const { version } = useApp();
@@ -19,12 +19,12 @@ export default function Updates() {
 
   return (
     <>
-      <div className="pagehead"><div><h1>Recent updates</h1><p>Everything that changed on problems you can access.</p></div></div>
+      <div className="pagehead"><div><h1>Atualizações recentes</h1><p>Tudo o que mudou nos problemas que você pode acessar.</p></div></div>
       <div className="chips">{Object.entries(RANGES).map(([k, l]) => <button key={k} aria-pressed={k === range} onClick={() => setSp({ range: k })}>{l}</button>)}</div>
       <div className="panel">
-        {events === null ? <p className="muted">Loading…</p> : events.length
+        {events === null ? <p className="muted">Carregando…</p> : events.length
           ? <ul className="feed">{events.map((e) => <FeedItem key={e.id} e={e} />)}</ul>
-          : <div className="empty"><h2>Nothing in this period</h2><p>No changes were recorded.</p></div>}
+          : <div className="empty"><h2>Nada neste período</h2><p>Nenhuma alteração foi registrada.</p></div>}
       </div>
     </>
   );

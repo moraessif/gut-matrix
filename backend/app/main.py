@@ -23,15 +23,15 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 FIELD_LABELS = {
-    "title": "Title", "description": "Description", "evidence": "Evidence", "operational_impact": "Operational impact",
-    "consequences": "Consequences", "source": "Problem source", "process": "Impacted process",
-    "impacted_area": "Impacted area", "suggested_action": "Suggested action", "country": "Country",
-    "branch": "Branch", "department": "Department", "gravity": "Gravity", "urgency": "Urgency", "trend": "Trend",
-    "g_just": "Gravity justification", "u_just": "Urgency justification", "t_just": "Trend justification",
-    "v_gravity": "Validated gravity", "v_urgency": "Validated urgency", "v_trend": "Validated trend",
-    "responsible_id": "Responsible person", "action_plan": "Action plan", "planned_start": "Planned start",
-    "deadline": "Deadline", "status": "Status", "gut_score": "Preliminary GUT score",
-    "final_score": "GUT score", "priority": "Priority", "progress_update": "Progress update",
+    "title": "Título", "description": "Descrição", "evidence": "Evidências", "operational_impact": "Impacto operacional",
+    "consequences": "Consequências", "source": "Origem do problema", "process": "Processo impactado",
+    "impacted_area": "Área impactada", "suggested_action": "Ação sugerida", "country": "País",
+    "branch": "Filial", "department": "Departamento", "gravity": "Gravidade", "urgency": "Urgência", "trend": "Tendência",
+    "g_just": "Justificativa da gravidade", "u_just": "Justificativa da urgência", "t_just": "Justificativa da tendência",
+    "v_gravity": "Gravidade validada", "v_urgency": "Urgência validada", "v_trend": "Tendência validada",
+    "responsible_id": "Pessoa responsável", "action_plan": "Plano de ação", "planned_start": "Início planejado",
+    "deadline": "Prazo", "status": "Status", "gut_score": "Nota GUT preliminar",
+    "final_score": "Nota GUT", "priority": "Prioridade", "progress_update": "Atualização de andamento",
 }
 TRACKED = ["title", "description", "evidence", "operational_impact", "consequences", "source", "process",
            "impacted_area", "suggested_action", "country", "branch", "department", "gravity", "urgency", "trend",
@@ -74,7 +74,7 @@ async def guard(request: Request, call_next):
 def auth_any(request: Request, b=Depends(db)):
     u = security.user_from_token(b, request.cookies.get(COOKIE))
     if not u:
-        raise HTTPException(401, "Not authenticated")
+        raise HTTPException(401, "Não autenticado")
     return u
 
 
@@ -86,7 +86,7 @@ def auth(u=Depends(auth_any)):
 
 def admin(u=Depends(auth)):
     if u["role"] != "super_admin":
-        raise HTTPException(403, "Super Admin only")
+        raise HTTPException(403, "Somente Super Admin")
     return u
 
 
@@ -248,7 +248,7 @@ def load_problems(b, names=None, include_deleted=False) -> list:
 def fetch_problem(b, pid: int, user):
     p = b.get("problems", pid)
     if not p or p.get("deleted_at") or not can_view(user, p):
-        raise HTTPException(404, "Problem not found")
+        raise HTTPException(404, "Problema não encontrado")
     names = {}
     for key in ("created_by", "responsible_id", "updated_by", "validated_by"):
         uid = p.get(key)
@@ -260,9 +260,9 @@ def fetch_problem(b, pid: int, user):
 
 def validate_geo(b, country, branch, department):
     if not any(x["country"] == country and x["name"] == branch for x in b.all("branches")):
-        raise HTTPException(422, f"Branch '{branch}' does not exist in {country}.")
+        raise HTTPException(422, f"A filial '{branch}' não existe em {country}.")
     if not any(x["name"] == department for x in b.all("departments")):
-        raise HTTPException(422, f"Department '{department}' does not exist.")
+        raise HTTPException(422, f"O departamento '{department}' não existe.")
 
 
 def log(b, pid, uid, kind, field=None, old=None, new=None, at=None):
@@ -283,13 +283,13 @@ def filter_problems(user, rows: list, q: dict) -> list:
     """Python version of the old SQL WHERE built from the query string (visibility + filters + views)."""
     for key in ("created_from", "created_to", "deadline_from", "deadline_to"):
         if q.get(key) and not DATE_RE.match(q[key]):
-            raise HTTPException(422, f"Invalid date for {key}")
+            raise HTTPException(422, f"Data inválida para {FIELD_LABELS.get(key, key)}")
     resp = q.get("responsible")
     if resp and resp != "none":
         try:
             resp = int(resp)
         except ValueError:
-            raise HTTPException(422, "Invalid responsible")
+            raise HTTPException(422, "Responsável inválido")
     needle = q["q"].strip().lower() if q.get("q") else ""
     digits = re.sub(r"\D", "", q["q"]) if q.get("q") else ""
     view = q.get("view")
@@ -347,7 +347,7 @@ def login(body: Login, request: Request, response: Response, b=Depends(db)):
     email = body.email.strip().lower()
     key = f"{request.client.host if request.client else '?'}|{email}"
     if security.too_many_attempts(b, key):
-        raise HTTPException(429, "Too many attempts. Try again in 15 minutes.")
+        raise HTTPException(429, "Muitas tentativas. Tente novamente em 15 minutos.")
     found = b.where("users", "email", email)
     u = found[0] if found else None
     ok = bool(u and u["active"] and security.verify_password(body.password, u["password_hash"]))
@@ -356,7 +356,7 @@ def login(body: Login, request: Request, response: Response, b=Depends(db)):
     if not ok:
         security.register_failure(b, key)
         audit(u["id"] if u else None, "login_failed", "user", email)
-        raise HTTPException(401, "Invalid e-mail or password.")
+        raise HTTPException(401, "E-mail ou senha inválidos.")
     security.clear_failures(b, key)
     b.update("users", u["id"], {"last_login": now()})
     audit(u["id"], "login", "user", u["id"])
@@ -378,12 +378,12 @@ def me(u=Depends(auth_any)):
 @app.post("/api/auth/change-password")
 def change_password(body: PasswordChange, request: Request, response: Response, u=Depends(auth_any), b=Depends(db)):
     if not security.verify_password(body.current_password, u["password_hash"]):
-        raise HTTPException(400, "Current password is incorrect.")
+        raise HTTPException(400, "A senha atual está incorreta.")
     problem = security.password_problem(body.new_password, u["email"])
     if problem:
         raise HTTPException(422, problem)
     if body.new_password == body.current_password:
-        raise HTTPException(422, "Choose a different password.")
+        raise HTTPException(422, "Escolha uma senha diferente.")
     b.update("users", u["id"], {"password_hash": security.hash_password(body.new_password),
                                 "must_change_password": False})
     security.revoke_user_sessions(b, u["id"])          # signs out every other device...
@@ -453,7 +453,7 @@ def create_problem(body: ProblemIn, u=Depends(auth), b=Depends(db)):
     d = {k: (v.strip() if isinstance(v, str) else v) for k, v in body.model_dump().items()}
     validate_geo(b, d["country"], d["branch"], d["department"])
     if not can_create(u, d["country"], d["branch"], d["department"]):
-        raise HTTPException(403, "You cannot register problems for this country/branch/department.")
+        raise HTTPException(403, "Você não pode registrar problemas para este país/filial/departamento.")
     derive(d)
     ts = now()
     pid = b.next_id("problems")
@@ -479,11 +479,11 @@ def patch_problem(pid: int, body: ProblemPatch, u=Depends(auth), b=Depends(db)):
     data = body.model_dump(exclude_unset=True)
     version_sent = data.pop("version")
     if version_sent != p["version"]:
-        raise HTTPException(409, "This problem was changed by someone else. Reload and try again.")
+        raise HTTPException(409, "Este problema foi alterado por outra pessoa. Recarregue e tente novamente.")
     allowed = editable_fields(u, p)
     forbidden = [k for k in data if k not in allowed]
     if forbidden:
-        raise HTTPException(403, f"You are not allowed to change: {', '.join(forbidden)}")
+        raise HTTPException(403, f"Você não tem permissão para alterar: {', '.join(FIELD_LABELS.get(k, k) for k in forbidden)}")
     for k, v in list(data.items()):
         if isinstance(v, str):
             data[k] = v.strip()
@@ -491,22 +491,22 @@ def patch_problem(pid: int, body: ProblemPatch, u=Depends(auth), b=Depends(db)):
         if k in data and not data[k]:
             data[k] = None
     if "status" in data and data["status"] not in STATUSES:
-        raise HTTPException(422, "Unknown status.")
+        raise HTTPException(422, "Status desconhecido.")
     if data.get("responsible_id") is not None:
         r = b.get("users", data["responsible_id"])
         if not r or not r["active"]:
-            raise HTTPException(422, "Responsible user does not exist or is inactive.")
+            raise HTTPException(422, "O usuário responsável não existe ou está inativo.")
     for k in ("title", "description"):
         if k in data and not data[k]:
-            raise HTTPException(422, f"{FIELD_LABELS[k]} cannot be empty.")
+            raise HTTPException(422, f"{FIELD_LABELS[k]}: o campo não pode ficar vazio.")
     merged = {**p, **data}
     if any(k in data for k in ("country", "branch", "department")):
         validate_geo(b, merged["country"], merged["branch"], merged["department"])
         if not can_create(u, merged["country"], merged["branch"], merged["department"]):
-            raise HTTPException(403, "That country/branch/department is outside your scope.")
+            raise HTTPException(403, "Esse país/filial/departamento está fora do seu escopo.")
     trio = [merged["v_gravity"], merged["v_urgency"], merged["v_trend"]]
     if any(trio) and not all(trio):
-        raise HTTPException(422, "Validated gravity, urgency and trend must all be set, or all cleared.")
+        raise HTTPException(422, "Gravidade, urgência e tendência validadas devem ser todas definidas ou todas limpas.")
     derive(merged)
     ts = now()
     if any(merged[k] != p[k] for k in VALIDATION_FIELDS):
@@ -533,7 +533,7 @@ def patch_problem(pid: int, body: ProblemPatch, u=Depends(auth), b=Depends(db)):
     try:
         b.cas_update("problems", pid, p["version"], fields)      # bumps version atomically; fails if someone else won
     except Conflict:
-        raise HTTPException(409, "This problem was changed by someone else. Reload and try again.")
+        raise HTTPException(409, "Este problema foi alterado por outra pessoa. Recarregue e tente novamente.")
     for f, old, new in changes:
         log(b, pid, u["id"], "change", f, old, new, ts)
     bump()
@@ -572,11 +572,11 @@ def list_updates(pid: int, u=Depends(auth), b=Depends(db)):
 def add_update(pid: int, body: UpdateIn, u=Depends(auth), b=Depends(db)):
     row = fetch_problem(b, pid, u)
     if not can_add_update(u, row):
-        raise HTTPException(403, "You cannot add updates to this problem.")
+        raise HTTPException(403, "Você não pode adicionar atualizações a este problema.")
     ts = now()
     text = body.body.strip()
     if not text:
-        raise HTTPException(422, "Write something first.")
+        raise HTTPException(422, "Escreva algo primeiro.")
     i = b.next_id("problem_updates")
     b.put("problem_updates", i, {"id": i, "problem_id": pid, "user_id": u["id"], "created_at": ts, "body": text})
     b.update("problems", pid, {"updated_at": ts, "updated_by": u["id"], "last_activity_at": ts})
@@ -591,7 +591,7 @@ def feed(since: Optional[str] = None, limit: int = Query(300, ge=1, le=1000), u=
     if since is None:
         since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
     if not re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", since):
-        raise HTTPException(422, "Invalid 'since'")
+        raise HTTPException(422, "Parâmetro 'since' inválido")
     names = user_names(b)
     problems = {p["id"]: p for p in b.all("problems") if not p.get("deleted_at") and can_view(u, p)}
     rows = [h for h in b.all("history") if h["at"] >= since and h["problem_id"] in problems
@@ -642,7 +642,7 @@ def dashboard(country: str = "", branch: str = "", department: str = "", u=Depen
 @app.get("/api/reports/summary")
 def report_summary(group: str = "country", u=Depends(auth), b=Depends(db)):
     if group not in ("country", "branch", "department"):
-        raise HTTPException(422, "group must be country, branch or department")
+        raise HTTPException(422, "group deve ser country, branch ou department")
     rows = visible_rows(b, u)
     today = datetime.now(timezone.utc)
     out = []
@@ -686,9 +686,9 @@ def export_problems(request: Request, u=Depends(auth), b=Depends(db)):
     rows.sort(key=lambda r: (-r["final_score"], r["id"]))
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Problem ID", "Creation date", "Created by", "Country", "Branch", "Department", "Problem", "Description",
-                "Evidence", "Operational impact", "Gravity", "Urgency", "Trend", "GUT score", "Priority",
-                "Responsible person", "Action plan", "Deadline", "Status", "Last update", "Updated by"])
+    w.writerow(["ID do problema", "Data de criação", "Criado por", "País", "Filial", "Departamento", "Problema", "Descrição",
+                "Evidências", "Impacto operacional", "Gravidade", "Urgência", "Tendência", "Nota GUT", "Prioridade",
+                "Pessoa responsável", "Plano de ação", "Prazo", "Status", "Última atualização", "Atualizado por"])
     for r in rows:
         w.writerow([csv_safe(x) for x in (r["id"], r["created_at"], r["created_by_name"], r["country"], r["branch"],
                     r["department"], r["title"], r["description"], r["evidence"], r["operational_impact"],
@@ -705,7 +705,7 @@ def export_history(u=Depends(admin), b=Depends(db)):
     rows = sorted((h for h in b.all("history") if h["problem_id"] in titles), key=lambda h: h["id"])
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Date/time (UTC)", "Problem ID", "Problem", "Changed by", "Kind", "Field", "Previous value", "New value"])
+    w.writerow(["Data/hora (UTC)", "ID do problema", "Problema", "Alterado por", "Tipo", "Campo", "Valor anterior", "Novo valor"])
     for r in rows:
         w.writerow([csv_safe(x) for x in (r["at"], r["problem_id"], titles[r["problem_id"]], names.get(r["user_id"]),
                     r["kind"], FIELD_LABELS.get(r["field"], r["field"]), r["old_value"], r["new_value"])])
@@ -716,13 +716,13 @@ def export_history(u=Depends(admin), b=Depends(db)):
 # ------------------------------------------------------------------ users (Super Admin)
 def check_scope(b, d):
     if d.get("scope_country") and not b.where("countries", "name", d["scope_country"]):
-        raise HTTPException(422, "Unknown country in scope.")
+        raise HTTPException(422, "País desconhecido no escopo.")
     if d.get("scope_branch"):
         if not d.get("scope_country") or not any(
                 x["country"] == d["scope_country"] and x["name"] == d["scope_branch"] for x in b.all("branches")):
-            raise HTTPException(422, "Branch scope needs a valid country and branch.")
+            raise HTTPException(422, "O escopo de filial precisa de um país e uma filial válidos.")
     if d.get("scope_department") and not b.where("departments", "name", d["scope_department"]):
-        raise HTTPException(422, "Unknown department in scope.")
+        raise HTTPException(422, "Departamento desconhecido no escopo.")
 
 
 @app.get("/api/users")
@@ -736,13 +736,13 @@ def list_users(u=Depends(admin), b=Depends(db)):
 def create_user(body: UserIn, u=Depends(admin), b=Depends(db)):
     email = body.email.strip().lower()
     if not EMAIL_RE.match(email):
-        raise HTTPException(422, "Invalid e-mail.")
+        raise HTTPException(422, "E-mail inválido.")
     if body.role not in ROLES:
-        raise HTTPException(422, "Invalid role.")
+        raise HTTPException(422, "Perfil inválido.")
     d = {k: (v or None) for k, v in body.model_dump().items() if k.startswith("scope_")}
     check_scope(b, d)
     if b.where("users", "email", email):
-        raise HTTPException(409, "A user with this e-mail already exists.")
+        raise HTTPException(409, "Já existe um usuário com este e-mail.")
     pw = security.temp_password()
     uid = b.next_id("users")
     rec = store.new_user(email, body.name.strip(), security.hash_password(pw), body.role, d)
@@ -757,16 +757,16 @@ def create_user(body: UserIn, u=Depends(admin), b=Depends(db)):
 def patch_user(uid: int, body: UserPatch, u=Depends(admin), b=Depends(db)):
     target = b.get("users", uid)
     if not target:
-        raise HTTPException(404, "User not found")
+        raise HTTPException(404, "Usuário não encontrado")
     data = body.model_dump(exclude_unset=True)
     if "role" in data and data["role"] not in ROLES:
-        raise HTTPException(422, "Invalid role.")
+        raise HTTPException(422, "Perfil inválido.")
     for k in ("scope_country", "scope_branch", "scope_department"):
         if k in data:
             data[k] = data[k] or None
     check_scope(b, {**target, **data})
     if uid == u["id"] and (data.get("active") is False or data.get("role", "super_admin") != "super_admin"):
-        raise HTTPException(422, "You cannot deactivate or demote yourself.")
+        raise HTTPException(422, "Você não pode desativar nem rebaixar a si mesmo.")
     if not data:
         return user_out(target)
     b.update("users", uid, data)
@@ -780,7 +780,7 @@ def patch_user(uid: int, body: UserPatch, u=Depends(admin), b=Depends(db)):
 @app.post("/api/users/{uid}/reset-password")
 def reset_password(uid: int, u=Depends(admin), b=Depends(db)):
     if not b.get("users", uid):
-        raise HTTPException(404, "User not found")
+        raise HTTPException(404, "Usuário não encontrado")
     pw = security.temp_password()
     b.update("users", uid, {"password_hash": security.hash_password(pw), "must_change_password": True})
     security.revoke_user_sessions(b, uid)
@@ -806,7 +806,7 @@ def org_lists(u=Depends(admin), b=Depends(db)):
 def add_country(body: OrgIn, u=Depends(admin), b=Depends(db)):
     name = body.name.strip()
     if b.where("countries", "name", name):
-        raise HTTPException(409, "Country already exists.")
+        raise HTTPException(409, "Este país já existe.")
     i = b.next_id("countries")
     b.put("countries", i, {"id": i, "name": name})
     audit(u["id"], "country_added", "country", body.name)
@@ -817,10 +817,10 @@ def add_country(body: OrgIn, u=Depends(admin), b=Depends(db)):
 @app.post("/api/org/branches", status_code=201)
 def add_branch(body: OrgIn, u=Depends(admin), b=Depends(db)):
     if not body.country or not b.where("countries", "name", body.country):
-        raise HTTPException(422, "Choose an existing country.")
+        raise HTTPException(422, "Escolha um país existente.")
     name = body.name.strip()
     if any(x["country"] == body.country and x["name"] == name for x in b.all("branches")):
-        raise HTTPException(409, "Branch already exists in this country.")
+        raise HTTPException(409, "Esta filial já existe neste país.")
     i = b.next_id("branches")
     b.put("branches", i, {"id": i, "country": body.country, "name": name})
     audit(u["id"], "branch_added", "branch", f"{body.country}/{body.name}")
@@ -832,7 +832,7 @@ def add_branch(body: OrgIn, u=Depends(admin), b=Depends(db)):
 def add_department(body: OrgIn, u=Depends(admin), b=Depends(db)):
     name = body.name.strip()
     if b.where("departments", "name", name):
-        raise HTTPException(409, "Department already exists.")
+        raise HTTPException(409, "Este departamento já existe.")
     i = b.next_id("departments")
     b.put("departments", i, {"id": i, "name": name})
     audit(u["id"], "department_added", "department", body.name)
@@ -843,10 +843,10 @@ def add_department(body: OrgIn, u=Depends(admin), b=Depends(db)):
 @app.delete("/api/org/{kind}/{oid}")
 def delete_org(kind: str, oid: int, u=Depends(admin), b=Depends(db)):
     if kind not in ("countries", "branches", "departments"):
-        raise HTTPException(404, "Unknown list")
+        raise HTTPException(404, "Lista desconhecida")
     r = b.get(kind, oid)
     if not r:
-        raise HTTPException(404, "Not found")
+        raise HTTPException(404, "Não encontrado")
     problems = b.all("problems")             # soft-deleted problems count too, as before
     if kind == "countries":
         used = any(p["country"] == r["name"] for p in problems) or any(x["country"] == r["name"] for x in b.all("branches"))
@@ -855,7 +855,7 @@ def delete_org(kind: str, oid: int, u=Depends(admin), b=Depends(db)):
     else:
         used = any(p["department"] == r["name"] for p in problems)
     if used:
-        raise HTTPException(409, "Still in use by problems or branches. Move or delete those first.")
+        raise HTTPException(409, "Ainda em uso por problemas ou filiais. Mova ou exclua esses itens primeiro.")
     b.delete(kind, oid)
     audit(u["id"], f"{kind}_removed", kind, oid, r["name"])
     bump()
@@ -870,7 +870,7 @@ if os.path.isdir(os.path.join(DIST, "assets")):
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str):
         if full_path.startswith("api/"):
-            raise HTTPException(404, "Not found")
+            raise HTTPException(404, "Não encontrado")
         candidate = os.path.abspath(os.path.join(DIST, full_path))
         if full_path and candidate.startswith(DIST + os.sep) and os.path.isfile(candidate):
             return FileResponse(candidate)
