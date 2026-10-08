@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.pytest_cache/
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+node_modules/
+dist/
+
+# deploy / secrets
+.vercel/
+.env
+.env.*
+*service-account*.json
